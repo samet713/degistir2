@@ -108,6 +108,10 @@ TOTAL_REPLACED=0
 TOTAL_TABLES_CHECKED=0
 TOTAL_TABLES_UPDATED=0
 
+# Escape karakterlerini hazırla
+ESCAPED_OLD=$(echo "$OLD_LINK" | sed "s/'/\\\\'/g")
+ESCAPED_NEW=$(echo "$NEW_LINK" | sed "s/'/\\\\'/g")
+
 # Her veritabanı için döngü
 for DB in $DATABASES; do
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -116,8 +120,6 @@ for DB in $DATABASES; do
     
     # Önce kontrol et: Bu veritabanında değiştirilecek veri var mı?
     echo -e "  ${CYAN}🔍 Değiştirilecek veri kontrol ediliyor...${NC}"
-    
-    ESCAPED_OLD=$(echo "$OLD_LINK" | sed "s/'/\\\\'/g")
     
     # Tabloları al
     TABLES=$(mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "SHOW TABLES;" 2>/dev/null | tail -n +2)
@@ -143,27 +145,11 @@ for DB in $DATABASES; do
             continue
         fi
         
-        while IFS=
-
-echo
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}🎉 İŞLEM TAMAMLANDI!${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo
-echo -e "${BLUE}📊 İSTATİSTİKLER:${NC}"
-echo -e "  • Taranan tablo sayısı: $TOTAL_TABLES_CHECKED"
-echo -e "  • Güncellenen tablo sayısı: $TOTAL_TABLES_UPDATED"
-echo -e "  • ${GREEN}Toplam güncellenen satır: $TOTAL_REPLACED${NC}"
-echo
-echo -e "${CYAN}📦 YEDEKLER:${NC}"
-echo -e "  • Yedek konumu: $BACKUP_DIR"
-echo -e "  • ${YELLOW}Geri yüklemek için: mysql -u root -p[şifre] [veritabanı] < [yedek.sql]${NC}"
-echo
-echo -e "${GREEN}========================================${NC}"\t' read -r COLUMN; do
+        while read -r COLUMN; do
             # Bu kolonda aranacak veri var mı kontrol et
             COUNT=$(mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "SELECT COUNT(*) FROM \`$TABLE\` WHERE \`$COLUMN\` LIKE '%$ESCAPED_OLD%';" 2>/dev/null | tail -n 1)
             
-            if [ "$COUNT" -gt 0 ]; then
+            if [ "$COUNT" -gt 0 ] 2>/dev/null; then
                 DB_HAS_DATA=1
                 break 2
             fi
@@ -212,26 +198,7 @@ echo -e "${GREEN}========================================${NC}"\t' read -r COLUM
         TABLE_HAS_UPDATE=0
         
         # Her kolon için REPLACE işlemi
-        while IFS=
-
-echo
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}🎉 İŞLEM TAMAMLANDI!${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo
-echo -e "${BLUE}📊 İSTATİSTİKLER:${NC}"
-echo -e "  • Taranan tablo sayısı: $TOTAL_TABLES_CHECKED"
-echo -e "  • Güncellenen tablo sayısı: $TOTAL_TABLES_UPDATED"
-echo -e "  • ${GREEN}Toplam güncellenen satır: $TOTAL_REPLACED${NC}"
-echo
-echo -e "${CYAN}📦 YEDEKLER:${NC}"
-echo -e "  • Yedek konumu: $BACKUP_DIR"
-echo -e "  • ${YELLOW}Geri yüklemek için: mysql -u root -p[şifre] [veritabanı] < [yedek.sql]${NC}"
-echo
-echo -e "${GREEN}========================================${NC}"\t' read -r COLUMN DATA_TYPE; do
-            # Escape işlemi
-            ESCAPED_NEW=$(echo "$NEW_LINK" | sed "s/'/\\\\'/g")
-            
+        while IFS=$'\t' read -r COLUMN DATA_TYPE; do
             # UPDATE query
             QUERY="UPDATE \`$TABLE\` SET \`$COLUMN\` = REPLACE(\`$COLUMN\`, '$ESCAPED_OLD', '$ESCAPED_NEW') WHERE \`$COLUMN\` LIKE '%$ESCAPED_OLD%';"
             
@@ -240,7 +207,7 @@ echo -e "${GREEN}========================================${NC}"\t' read -r COLUM
             if [ $? -eq 0 ]; then
                 ROWS_CHANGED=$(mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "SELECT ROW_COUNT();" 2>/dev/null | tail -n 1)
                 
-                if [ "$ROWS_CHANGED" -gt 0 ]; then
+                if [ "$ROWS_CHANGED" -gt 0 ] 2>/dev/null; then
                     echo -e "  ${GREEN}✓${NC} Tablo: ${BLUE}$TABLE${NC} | Kolon: ${BLUE}$COLUMN${NC} | ${GREEN}$ROWS_CHANGED satır güncellendi${NC}"
                     TOTAL_REPLACED=$((TOTAL_REPLACED + ROWS_CHANGED))
                     TABLE_HAS_UPDATE=1
