@@ -198,21 +198,48 @@ for DB in $DATABASES; do
         TABLE_HAS_UPDATE=0
         
         # Her kolon için REPLACE işlemi
-        while IFS=$'\t' read -r COLUMN DATA_TYPE; do
-            # UPDATE query
-            QUERY="UPDATE \`$TABLE\` SET \`$COLUMN\` = REPLACE(\`$COLUMN\`, '$ESCAPED_OLD', '$ESCAPED_NEW') WHERE \`$COLUMN\` LIKE '%$ESCAPED_OLD%';"
+        while IFS=
+        
+        if [ $TABLE_HAS_UPDATE -eq 1 ]; then
+            TOTAL_TABLES_UPDATED=$((TOTAL_TABLES_UPDATED + 1))
+        fi
+    done
+    
+    echo
+done
+
+echo
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}🎉 İŞLEM TAMAMLANDI!${NC}"
+echo -e "${GREEN}========================================${NC}"
+echo
+echo -e "${BLUE}📊 İSTATİSTİKLER:${NC}"
+echo -e "  • Taranan tablo sayısı: $TOTAL_TABLES_CHECKED"
+echo -e "  • Güncellenen tablo sayısı: $TOTAL_TABLES_UPDATED"
+echo -e "  • ${GREEN}Toplam güncellenen satır: $TOTAL_REPLACED${NC}"
+echo
+echo -e "${CYAN}📦 YEDEKLER:${NC}"
+echo -e "  • Yedek konumu: $BACKUP_DIR"
+echo -e "  • ${YELLOW}Geri yüklemek için: mysql -u root -p[şifre] [veritabanı] < [yedek.sql]${NC}"
+echo
+echo -e "${GREEN}========================================${NC}"\t' read -r COLUMN DATA_TYPE; do
+            # Önce kaç satır etkilenecek kontrol et
+            COUNT_BEFORE=$(mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "SELECT COUNT(*) FROM \`$TABLE\` WHERE \`$COLUMN\` LIKE '%$ESCAPED_OLD%';" 2>/dev/null | tail -n 1)
             
-            mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "$QUERY" 2>/dev/null
+            if [ -z "$COUNT_BEFORE" ] || [ "$COUNT_BEFORE" -eq 0 ] 2>/dev/null; then
+                continue
+            fi
             
-            if [ $? -eq 0 ]; then
-                ROWS_CHANGED=$(mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "SELECT ROW_COUNT();" 2>/dev/null | tail -n 1)
-                
-                if [ "$ROWS_CHANGED" -gt 0 ] 2>/dev/null; then
-                    echo -e "  ${GREEN}✓${NC} Tablo: ${BLUE}$TABLE${NC} | Kolon: ${BLUE}$COLUMN${NC} | ${GREEN}$ROWS_CHANGED satır güncellendi${NC}"
-                    TOTAL_REPLACED=$((TOTAL_REPLACED + ROWS_CHANGED))
-                    TABLE_HAS_UPDATE=1
-                    DB_HAS_UPDATE=1
-                fi
+            # UPDATE query'i çalıştır
+            RESULT=$(mysql -u root -p"$MYSQL_PASSWORD" -D "$DB" -e "UPDATE \`$TABLE\` SET \`$COLUMN\` = REPLACE(\`$COLUMN\`, '$ESCAPED_OLD', '$ESCAPED_NEW') WHERE \`$COLUMN\` LIKE '%$ESCAPED_OLD%'; SELECT ROW_COUNT() as affected;" 2>/dev/null)
+            
+            ROWS_CHANGED=$(echo "$RESULT" | tail -n 1)
+            
+            if [ ! -z "$ROWS_CHANGED" ] && [ "$ROWS_CHANGED" -gt 0 ] 2>/dev/null; then
+                echo -e "  ${GREEN}✓${NC} Tablo: ${BLUE}$TABLE${NC} | Kolon: ${BLUE}$COLUMN${NC} | ${GREEN}$ROWS_CHANGED satır güncellendi${NC}"
+                TOTAL_REPLACED=$((TOTAL_REPLACED + ROWS_CHANGED))
+                TABLE_HAS_UPDATE=1
+                DB_HAS_UPDATE=1
             fi
         done <<< "$COLUMNS"
         
